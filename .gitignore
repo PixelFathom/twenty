@@ -48,3 +48,6 @@ dump.rdb
 
 mcp.json
 /.junie/
+
+# Claude Code SDK configuration
+.claude/
