@@ -106,9 +106,20 @@ export const WorkflowCreateRecordBody = ({
 
   const viewFields = indexView?.viewFields ?? [];
 
+  const uniqueFieldMetadataItems = objectMetadataItem?.fields.filter(
+    (fieldMetadataItem) => fieldMetadataItem.isUnique,
+  );
+
+  const hasUniqueFields = uniqueFieldMetadataItems && uniqueFieldMetadataItems.length > 0;
+  const shouldShowIdField = actionType === 'UPSERT_RECORD' && !hasUniqueFields;
+
   const inlineFieldMetadataItems = objectMetadataItem?.fields
     .filter((fieldMetadataItem) =>
-      shouldDisplayFormField({ fieldMetadataItem, actionType }),
+      shouldDisplayFormField({
+        fieldMetadataItem,
+        actionType,
+        allowIdForUpsert: shouldShowIdField
+      }),
     )
     .map((fieldMetadataItem) => {
       const viewField = viewFields.find(
@@ -121,12 +132,17 @@ export const WorkflowCreateRecordBody = ({
     })
     .sort(sortByViewFieldPosition);
 
-  const uniqueFieldMetadataItems = inlineFieldMetadataItems?.filter(
-    (fieldMetadataItem) => fieldMetadataItem.isUnique,
+  // Separate ID field from other fields for special handling
+  const idFieldMetadataItem = inlineFieldMetadataItems?.find(
+    (fieldMetadataItem) => fieldMetadataItem.name === 'id'
+  );
+
+  const nonIdFieldMetadataItems = inlineFieldMetadataItems?.filter(
+    (fieldMetadataItem) => fieldMetadataItem.name !== 'id'
   );
 
   const inlineFieldDefinitions = isDefined(objectMetadataItem)
-    ? inlineFieldMetadataItems?.map((fieldMetadataItem) =>
+    ? nonIdFieldMetadataItems?.map((fieldMetadataItem) =>
         formatFieldMetadataItemAsFieldDefinition({
           field: fieldMetadataItem,
           objectMetadataItem,
@@ -135,6 +151,15 @@ export const WorkflowCreateRecordBody = ({
         }),
       )
     : [];
+
+  const idFieldDefinition = isDefined(objectMetadataItem) && isDefined(idFieldMetadataItem)
+    ? formatFieldMetadataItemAsFieldDefinition({
+        field: idFieldMetadataItem,
+        objectMetadataItem,
+        showLabel: true,
+        labelWidth: 90,
+      })
+    : null;
 
   const handleFieldChange = (
     fieldName: keyof CreateRecordFormData,
@@ -231,6 +256,33 @@ export const WorkflowCreateRecordBody = ({
             readonly
             hint={t`We match on these fields. If a ${objectLabelSingular} already exists, we update it. Otherwise, we create a new one.`}
           />
+        )}
+
+      {actionType === 'UPSERT_RECORD' &&
+        isDefined(objectMetadataItem) &&
+        shouldShowIdField &&
+        isDefined(idFieldDefinition) && (
+          <>
+            <WorkflowFieldsMultiSelect
+              label={t`Record ID (optional)`}
+              objectMetadataItem={objectMetadataItem}
+              handleFieldsChange={() => {}}
+              defaultFields={['id']}
+              placeholder={t`Record ID`}
+              readonly
+              hint={t`Specify the ID to update an existing ${objectLabelSingular}. Leave empty to create a new one.`}
+            />
+            <FormFieldInput
+              key="id"
+              defaultValue={formData.id as JsonValue}
+              field={idFieldDefinition}
+              onChange={(value) => {
+                handleFieldChange('id', value);
+              }}
+              VariablePicker={WorkflowVariablePicker}
+              readonly={readonly}
+            />
+          </>
         )}
 
       <HorizontalSeparator noMargin />

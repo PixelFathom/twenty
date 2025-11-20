@@ -27,9 +27,11 @@ const SUPPORTED_FORM_FIELD_TYPES = [
 export const shouldDisplayFormField = ({
   fieldMetadataItem,
   actionType,
+  allowIdForUpsert = false,
 }: {
   fieldMetadataItem: FieldMetadataItem;
   actionType: WorkflowActionType;
+  allowIdForUpsert?: boolean;
 }) => {
   if (!SUPPORTED_FORM_FIELD_TYPES.includes(fieldMetadataItem.type)) {
     return false;
@@ -43,11 +45,17 @@ export const shouldDisplayFormField = ({
   switch (actionType) {
     case 'CREATE_RECORD':
     case 'UPDATE_RECORD':
-    case 'UPSERT_RECORD':
       return (
         !isNotSupportedRelation &&
         !fieldMetadataItem.isUIReadOnly &&
         !fieldMetadataItem.isSystem &&
+        fieldMetadataItem.isActive
+      );
+    case 'UPSERT_RECORD':
+      return (
+        !isNotSupportedRelation &&
+        !fieldMetadataItem.isUIReadOnly &&
+        (!fieldMetadataItem.isSystem || (isIdField && allowIdForUpsert)) &&
         fieldMetadataItem.isActive
       );
     case 'FIND_RECORDS':
